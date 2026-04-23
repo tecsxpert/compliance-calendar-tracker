@@ -1,9 +1,7 @@
 from flask import Blueprint, request, jsonify
 from services.groq_client import get_recommendations
 from datetime import datetime
-from flask import Blueprint
 
-describe_bp = Blueprint("describe", __name__)
 
 recommend_bp = Blueprint("recommend", __name__)
 
@@ -11,11 +9,11 @@ recommend_bp = Blueprint("recommend", __name__)
 def recommend():
     data = request.get_json()
 
-   
+    
     if not isinstance(data, dict):
         return jsonify({"error": "Please enter valid input"}), 400
 
-   
+    
     if "text" not in data:
         return jsonify({"error": "Please enter valid input"}), 400
 

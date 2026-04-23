@@ -1,11 +1,13 @@
 from flask import Flask, jsonify
 from routes.health_routes import health_bp
 from routes.describe_routes import describe_bp
+from routes.recommend_routes import recommend_bp
+
 
 
 app = Flask(__name__)
 
-
+app.register_blueprint(recommend_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(describe_bp)
 
