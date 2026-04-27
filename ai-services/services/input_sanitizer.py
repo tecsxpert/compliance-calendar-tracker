@@ -36,4 +36,4 @@ def sanitize_input():
 
             data[key] = clean_value
 
-    return None  # No issues
+    return None  # No issues 
