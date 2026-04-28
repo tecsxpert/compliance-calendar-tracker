@@ -1,3 +1,4 @@
+# Day 2 implementation
 import os
 import time
 import logging
