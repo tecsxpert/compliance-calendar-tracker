@@ -190,3 +190,31 @@ Logs store sensitive info → privacy violation
 - Added input length should be greater than 5
 - APIs ready for backend integration
 
+## OWASP ZAP Scan Results
+
+### Tool Used
+- OWASP ZAP
+
+### Target
+- http://127.0.0.1:5000
+
+### Findings
+
+#### High Severity
+- None
+
+#### Medium Severity
+- Content Security Policy (CSP) Header Not Set  
+- X-Content-Type-Options Header Missing  
+
+#### Low Severity
+- Server leaks version information via "Server" HTTP header  
+
+#### Informational
+- User Agent Fuzzer (system generated alerts)
+
+### Conclusion
+- No critical vulnerabilities found
+- Identified issues are related to missing security headers
+- Application is secure for development stage
+- Security improvements can be added in future (headers, production config)

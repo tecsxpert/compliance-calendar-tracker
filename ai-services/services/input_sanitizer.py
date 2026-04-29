@@ -18,6 +18,11 @@ def is_malicious(text):
     return False
 
 def sanitize_input():
+
+    # ✅ Allow GET requests (ZAP uses GET)
+    if request.method == "GET":
+        return None
+
     data = request.get_json(silent=True)
 
     if not data:
@@ -25,20 +30,19 @@ def sanitize_input():
 
     for key, value in data.items():
         if isinstance(value, str):
-            # Remove HTML tags
-            #clean_value = re.sub(r"<.*?>", "", value)
 
-            # Check for malicious patterns
             if is_malicious(value):
                 return jsonify({
                     "error": "Malicious input detected"
                 }), 400
+
             if len(value.strip()) < 5:
                 return jsonify({
-                    "error":"Invalid input",
-                    "message":"Input too short"
+                    "error": "Invalid input",
+                    "message": "Input too short"
                 }), 400
+
             clean_value = re.sub(r"<.*?>", "", value)
             data[key] = clean_value
 
-    return None  # No issues 
+    return None

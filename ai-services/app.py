@@ -13,7 +13,9 @@ def check_input():
     result=sanitize_input()
     if result:
         return result
-
+@app.route("/")
+def home():
+    return {"message": "AI Service Running"}
 @app.route("/health")
 def health():
     return {"status": "AI service running"}
