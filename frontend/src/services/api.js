@@ -1,31 +1,29 @@
 import axios from 'axios'
 
-// Base Axios instance — reads VITE_API_URL from .env
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 10000, // 10 second timeout
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 10000,
 })
 
-// Request interceptor — auto-attach JWT token to every request
+// Attach JWT to every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('jwt_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`
     return config
   },
   (error) => Promise.reject(error)
 )
 
-// Response interceptor — auto-redirect to login on 401
+// On 401 — redirect to login ONLY for non-auth routes
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url = error.config?.url ?? ''
+    const is401 = error.response?.status === 401
+    const isAuthRoute = url.includes('/auth/')
+    if (is401 && !isAuthRoute) {
       localStorage.removeItem('jwt_token')
       localStorage.removeItem('user')
       window.location.href = '/login'

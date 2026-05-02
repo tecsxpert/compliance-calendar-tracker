@@ -2,22 +2,29 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
+import Sidebar from './components/Sidebar'
 
-// Pages
 import Login from './pages/Login'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import ComplianceList from './pages/ComplianceList'
+import ComplianceForm from './pages/ComplianceForm'
+import ComplianceDetail from './pages/ComplianceDetail'
 import Analytics from './pages/Analytics'
 import TaskList from './pages/TaskList'
 
-// Layout wrapper for all protected pages (shows Navbar)
 function AppLayout() {
   return (
     <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <main>
-        <Outlet />
-      </main>
+      <Sidebar />
+      <div className="lg:pl-60 flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1 py-6">
+          <div className="page-shell">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
@@ -27,13 +34,9 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/login"    element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-          {/* Public route — no Navbar */}
-          // In App.jsx, uncomment inside the protected routes:
-          <Route path="/compliance" element={<ComplianceList />} />
-        <Route path="/login" element={<Login />} /> 
-
-          {/* Protected routes — wrapped in Navbar layout */}
           <Route
             element={
               <ProtectedRoute>
@@ -41,21 +44,17 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/compliance" element={<ComplianceList />} />
-            <Route path="/dashboard"  element={<Dashboard />} />
-            <Route path="/compliance" element={<ComplianceList />} />
-            <Route path="/analytics"  element={<Analytics />} />
-            <Route path="/tasks"  element={<TaskList />} />
-            {/* More routes added as we build: */}
-            {/* <Route path="/compliance/new"  element={<ComplianceForm />} /> */}
-            {/* <Route path="/compliance/:id" element={<ComplianceDetail />} /> */}
-            {/* <Route path="/compliance/:id/edit" element={<ComplianceForm />} /> */}
+            <Route index                        element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard"            element={<Dashboard />} />
+            <Route path="/compliance"           element={<ComplianceList />} />
+            <Route path="/compliance/new"       element={<ComplianceForm />} />
+            <Route path="/compliance/:id"       element={<ComplianceDetail />} />
+            <Route path="/compliance/:id/edit"  element={<ComplianceForm />} />
+            <Route path="/analytics"            element={<Analytics />} />
+            <Route path="/tasks"                element={<TaskList />} />
           </Route>
 
-          {/* Catch-all — redirect unknown URLs */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-
         </Routes>
       </BrowserRouter>
     </AuthProvider>

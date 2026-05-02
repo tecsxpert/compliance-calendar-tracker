@@ -1,43 +1,37 @@
 import api from './api'
 
-// ── Compliance Records ──────────────────────────────────────────
-
-// GET all records with pagination, sorting, filtering
+// GET /api/compliance — supports page, size, sortBy, sortDir, status, priority, search, dateFrom, dateTo
 export const getAll = (params = {}) =>
   api.get('/api/compliance', { params })
 
-// GET one record by ID
+// GET /api/compliance/{id}
 export const getById = (id) =>
   api.get(`/api/compliance/${id}`)
 
-// POST create a new record
+// POST /api/compliance
 export const create = (data) =>
   api.post('/api/compliance', data)
 
-// PUT update an existing record
+// PUT /api/compliance/{id}
 export const update = (id, data) =>
   api.put(`/api/compliance/${id}`, data)
 
-// DELETE soft-delete a record
+// DELETE /api/compliance/{id}
 export const remove = (id) =>
   api.delete(`/api/compliance/${id}`)
 
-// ── Search & Stats ──────────────────────────────────────────────
-
-// GET search by keyword
+// GET /api/compliance/search?q=keyword
 export const search = (query) =>
   api.get('/api/compliance/search', { params: { q: query } })
 
-// GET dashboard KPI stats
+// GET /api/compliance/stats
 export const getStats = () =>
   api.get('/api/compliance/stats')
 
-// GET CSV export (returns blob)
+// GET /api/compliance/export — returns blob for CSV download
 export const exportCsv = () =>
   api.get('/api/compliance/export', { responseType: 'blob' })
 
-// ── AI Analysis ────────────────────────────────────────────────
-
-// POST get AI analysis for a record
+// POST /api/compliance/{id}/analyse — AI analysis
 export const getAiAnalysis = (id) =>
   api.post(`/api/compliance/${id}/analyse`)

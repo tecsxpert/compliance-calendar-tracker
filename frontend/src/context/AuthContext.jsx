@@ -13,22 +13,25 @@ export function AuthProvider({ children }) {
     }
   })
 
-  const isAuthenticated = !!user && !!localStorage.getItem('jwt_token')
+  const [token, setToken] = useState(() => localStorage.getItem('jwt_token') ?? null)
+
+  const isAuthenticated = !!user && !!token
 
   const login = useCallback(async (email, password) => {
     const res = await authService.login(email, password)
-    const { token, user: userData } = res.data
-
-    localStorage.setItem('jwt_token', token)
+    // Backend returns: { token: "...", user: { id, name, email, role } }
+    const { token: jwt, user: userData } = res.data
+    localStorage.setItem('jwt_token', jwt)
     localStorage.setItem('user', JSON.stringify(userData))
+    setToken(jwt)
     setUser(userData)
-
     return userData
   }, [])
 
   const logout = useCallback(() => {
     localStorage.removeItem('jwt_token')
     localStorage.removeItem('user')
+    setToken(null)
     setUser(null)
   }, [])
 
@@ -39,7 +42,6 @@ export function AuthProvider({ children }) {
   )
 }
 
-// Custom hook — use this in any component
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
