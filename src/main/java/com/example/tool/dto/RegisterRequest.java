@@ -19,4 +19,10 @@ public class RegisterRequest {
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
+
+    /**
+     * Optional role assignment. Defaults to VIEWER if not provided.
+     * Accepted values: ADMIN, MANAGER, VIEWER.
+     */
+    private String role;
 }

@@ -4,7 +4,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/compliance_db
     username: postgres
-    password: postgres
+    password: 1234
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -27,3 +27,8 @@ logging:
     com.example.tool: INFO
     org.springframework.security: WARN
     org.flywaydb: INFO
+
+jwt:
+  secret: Y29tcGxpYW5jZS1jYWxlbmRhci10cmFja2VyLXNlY3JldC1rZXktMjAyNg==
+  access-token-expiration: 900000       # 15 minutes
+  refresh-token-expiration: 604800000   # 7 days
