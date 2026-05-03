@@ -22,6 +22,12 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+
+cache:
+  redis:
+    ttl: ${CACHE_TTL:600}
 
 server:
   port: 8080
@@ -35,3 +41,4 @@ logging:
     com.example.tool: INFO
     org.springframework.security: WARN
     org.flywaydb: INFO
+    org.springframework.cache: TRACE
