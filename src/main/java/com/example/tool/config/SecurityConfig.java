@@ -57,6 +57,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // public
                 .requestMatchers("/auth/**").permitAll()
+                // file upload - admin + manager
+                .requestMatchers(HttpMethod.POST, "/api/files/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+                // file download - all authenticated
+                .requestMatchers(HttpMethod.GET, "/api/files/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_VIEWER")
                 // admin only
                 .requestMatchers(HttpMethod.DELETE, "/api/**").hasAuthority("ROLE_ADMIN")
                 // admin + manager
