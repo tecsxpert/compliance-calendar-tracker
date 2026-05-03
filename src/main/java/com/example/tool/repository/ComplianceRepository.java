@@ -18,4 +18,18 @@ public interface ComplianceRepository extends JpaRepository<Compliance, Long> {
     List<Compliance> searchByTitle(@Param("keyword") String keyword);
 
     List<Compliance> findByDueDateBetween(LocalDate start, LocalDate end);
+
+    /**
+     * Returns items whose dueDate is strictly before {@code date}
+     * and whose status is NOT equal to {@code status}.
+     * Used by the daily overdue reminder to find past-due, incomplete items.
+     */
+    List<Compliance> findByDueDateBeforeAndStatusNot(LocalDate date, String status);
+
+    /**
+     * Returns items whose dueDate falls within [{@code start}, {@code end}]
+     * and whose status is NOT equal to {@code status}.
+     * Used by the 7-day deadline alert to find upcoming, incomplete items.
+     */
+    List<Compliance> findByDueDateBetweenAndStatusNot(LocalDate start, LocalDate end, String status);
 }
