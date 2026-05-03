@@ -21,7 +21,7 @@ public class ComplianceScheduler {
     @Scheduled(cron = "0 0 0 * * *")
     public void markOverdueRecords() {
         List<Compliance> overdue = complianceRepository
-                .findByDueDateBetween(LocalDate.of(2000, 1, 1), LocalDate.now().minusDays(1))
+                .findByIsDeletedFalseAndDueDateBetween(LocalDate.of(2000, 1, 1), LocalDate.now().minusDays(1))
                 .stream()
                 .filter(c -> "PENDING".equals(c.getStatus()))
                 .toList();

@@ -6,10 +6,11 @@ import com.example.tool.exception.InvalidDataException;
 import com.example.tool.exception.ResourceNotFoundException;
 import com.example.tool.repository.ComplianceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,81 +22,72 @@ public class ComplianceService {
 
     public Compliance createRecord(ComplianceRequest request) {
         validate(request);
-        Compliance compliance = new Compliance();
-        compliance.setTitle(request.getTitle());
-        compliance.setDescription(request.getDescription());
-        compliance.setStatus(request.getStatus());
-        compliance.setDueDate(request.getDueDate());
-        return complianceRepository.save(compliance);
+        Compliance c = new Compliance();
+        c.setTitle(request.getTitle());
+        c.setDescription(request.getDescription());
+        c.setStatus(request.getStatus());
+        c.setDueDate(request.getDueDate());
+        return complianceRepository.save(c);
     }
 
-    public List<Compliance> getAllRecords() {
-        return complianceRepository.findAll();
+    public Page<Compliance> getAllRecords(Pageable pageable) {
+        return complianceRepository.findByIsDeletedFalse(pageable);
     }
 
     public Compliance getRecordById(Long id) {
-        return complianceRepository.findById(id)
+        return complianceRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Compliance record not found with id: " + id));
     }
 
     public Compliance updateRecord(Long id, ComplianceRequest request) {
         validate(request);
-        Compliance existing = getRecordById(id);
-        existing.setTitle(request.getTitle());
-        existing.setDescription(request.getDescription());
-        existing.setStatus(request.getStatus());
-        existing.setDueDate(request.getDueDate());
-        return complianceRepository.save(existing);
+        Compliance c = getRecordById(id);
+        c.setTitle(request.getTitle());
+        c.setDescription(request.getDescription());
+        c.setStatus(request.getStatus());
+        c.setDueDate(request.getDueDate());
+        return complianceRepository.save(c);
     }
 
     public void deleteRecord(Long id) {
-        if (!complianceRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Compliance record not found with id: " + id);
-        }
-        complianceRepository.deleteById(id);
-    }
-
-    // --- kept for controller compatibility ---
-
-    public List<Compliance> getAll() {
-        return getAllRecords();
-    }
-
-    public Compliance getById(Long id) {
-        return getRecordById(id);
-    }
-
-    public Compliance create(ComplianceRequest request) {
-        return createRecord(request);
-    }
-
-    public Compliance update(Long id, ComplianceRequest request) {
-        return updateRecord(id, request);
-    }
-
-    public void delete(Long id) {
-        deleteRecord(id);
+        Compliance c = complianceRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Compliance record not found with id: " + id));
+        c.setDeleted(true);
+        complianceRepository.save(c);
     }
 
     public List<Compliance> search(String keyword) {
-        return complianceRepository.searchByTitle(keyword);
+        return complianceRepository.search(keyword);
     }
 
     public Map<String, Long> getStats() {
-        Map<String, Long> stats = new HashMap<>();
-        stats.put("total", complianceRepository.count());
-        stats.put("pending", (long) complianceRepository.findByStatus("PENDING").size());
-        stats.put("completed", (long) complianceRepository.findByStatus("COMPLETED").size());
-        stats.put("overdue", (long) complianceRepository.findByStatus("OVERDUE").size());
-        return stats;
+        return Map.of(
+                "total",     complianceRepository.countByIsDeletedFalse(),
+                "pending",   complianceRepository.countByStatusAndIsDeletedFalse("PENDING"),
+                "completed", complianceRepository.countByStatusAndIsDeletedFalse("COMPLETED"),
+                "overdue",   complianceRepository.countByStatusAndIsDeletedFalse("OVERDUE"),
+                "open",      complianceRepository.countByStatusAndIsDeletedFalse("OPEN"),
+                "closed",    complianceRepository.countByStatusAndIsDeletedFalse("CLOSED")
+        );
     }
 
-    private void validate(ComplianceRequest request) {
-        if (request.getTitle() == null || request.getTitle().isBlank()) {
+    // --- legacy delegates (scheduler + backward compat) ---
+
+    public List<Compliance> getAll() {
+        return complianceRepository.findAll();
+    }
+
+    public Compliance getById(Long id)                          { return getRecordById(id); }
+    public Compliance create(ComplianceRequest r)               { return createRecord(r); }
+    public Compliance update(Long id, ComplianceRequest r)      { return updateRecord(id, r); }
+    public void delete(Long id)                                 { deleteRecord(id); }
+
+    // --- private ---
+
+    private void validate(ComplianceRequest r) {
+        if (r.getTitle() == null || r.getTitle().isBlank())
             throw new InvalidDataException("Title must not be empty");
-        }
-        if (request.getDueDate() != null && request.getDueDate().isBefore(LocalDate.now())) {
+        if (r.getDueDate() != null && r.getDueDate().isBefore(LocalDate.now()))
             throw new InvalidDataException("Due date must not be in the past");
-        }
     }
 }

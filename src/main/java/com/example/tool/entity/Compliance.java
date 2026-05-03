@@ -37,6 +37,9 @@ public class Compliance {
     @Column(name = "due_date")
     private LocalDate dueDate;
 
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
