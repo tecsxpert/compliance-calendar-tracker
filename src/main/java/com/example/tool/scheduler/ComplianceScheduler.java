@@ -2,8 +2,10 @@ package com.example.tool.scheduler;
 
 import com.example.tool.entity.Compliance;
 import com.example.tool.repository.ComplianceRepository;
+import com.example.tool.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -16,8 +18,11 @@ import java.util.List;
 public class ComplianceScheduler {
 
     private final ComplianceRepository complianceRepository;
+    private final EmailService emailService;
 
-    /** Runs daily at midnight — marks past-due PENDING records as OVERDUE. */
+    @Value("${notification.email.recipient:admin@example.com}")
+    private String notificationRecipient;
+
     @Scheduled(cron = "0 0 0 * * *")
     public void markOverdueRecords() {
         List<Compliance> overdue = complianceRepository
@@ -29,5 +34,7 @@ public class ComplianceScheduler {
         overdue.forEach(c -> c.setStatus("OVERDUE"));
         complianceRepository.saveAll(overdue);
         log.info("Marked {} compliance records as OVERDUE", overdue.size());
+
+        overdue.forEach(c -> emailService.sendOverdueEmail(notificationRecipient, c));
     }
 }

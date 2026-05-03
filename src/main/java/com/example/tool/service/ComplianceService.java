@@ -7,6 +7,7 @@ import com.example.tool.exception.ResourceNotFoundException;
 import com.example.tool.repository.ComplianceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -24,6 +25,10 @@ import java.util.Map;
 public class ComplianceService {
 
     private final ComplianceRepository complianceRepository;
+    private final EmailService emailService;
+
+    @Value("${notification.email.recipient:admin@example.com}")
+    private String notificationRecipient;
 
     @Caching(evict = {
             @CacheEvict(value = "complianceRecords", allEntries = true),
@@ -37,7 +42,9 @@ public class ComplianceService {
         c.setDescription(request.getDescription());
         c.setStatus(request.getStatus());
         c.setDueDate(request.getDueDate());
-        return complianceRepository.save(c);
+        Compliance saved = complianceRepository.save(c);
+        emailService.sendComplianceCreatedEmail(notificationRecipient, saved);
+        return saved;
     }
 
     @Cacheable(value = "complianceRecords", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort", unless = "#result == null")
