@@ -2,9 +2,9 @@ spring:
   application:
     name: compliance-calendar-tracker
   datasource:
-    url: jdbc:postgresql://localhost:5432/compliance_db
-    username: postgres
-    password: postgres
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/compliance_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -13,17 +13,59 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: false
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        debug: false
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${MAX_FILE_SIZE:10MB}
+      max-request-size: ${MAX_REQUEST_SIZE:10MB}
+
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+
+cache:
+  redis:
+    ttl: ${CACHE_TTL:600}
 
 server:
   port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:default-secret-change-in-production-must-be-32-chars}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+notification:
+  email:
+    recipient: ${NOTIFICATION_EMAIL:admin@example.com}
+
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:uploads}
 
 logging:
   level:
     com.example.tool: INFO
     org.springframework.security: WARN
     org.flywaydb: INFO
+    org.springframework.cache: TRACE
