@@ -2,18 +2,17 @@ package com.example.tool.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 /**
- * Enables Spring's @Scheduled annotation support and configures a dedicated
- * thread pool so scheduled tasks do not block each other.
- *
- * Without a custom TaskScheduler, all @Scheduled tasks share a single thread,
- * meaning one long-running task can delay the others.
+ * Enables @Scheduled and @Async support.
+ * @Async is required by EmailService so mail sending never blocks the caller.
  */
 @Configuration
 @EnableScheduling
+@EnableAsync
 public class SchedulerConfig {
 
     /**

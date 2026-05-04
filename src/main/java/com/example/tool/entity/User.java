@@ -35,6 +35,10 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    /** Used by EmailService to send notifications to this user. */
+    @Column
+    private String email;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;

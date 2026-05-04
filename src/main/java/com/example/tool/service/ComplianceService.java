@@ -4,8 +4,14 @@ import com.example.tool.dto.ComplianceRequest;
 import com.example.tool.entity.Compliance;
 import com.example.tool.exception.ComplianceNotFoundException;
 import com.example.tool.repository.ComplianceRepository;
+import com.example.tool.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.HashMap;
 import java.util.List;
@@ -16,8 +22,16 @@ import java.util.Map;
 public class ComplianceService {
 
     private final ComplianceRepository complianceRepository;
+    private final EmailService emailService;
+    private final UserRepository userRepository;
 
-    public List<Compliance> getAll() {
+    public Page<Compliance> getAll(int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        return complianceRepository.findAll(PageRequest.of(page, size, sort));
+    }
+
+    public List<Compliance> exportAll() {
         return complianceRepository.findAll();
     }
 
@@ -32,7 +46,15 @@ public class ComplianceService {
         compliance.setDescription(request.getDescription());
         compliance.setStatus(request.getStatus());
         compliance.setDueDate(request.getDueDate());
-        return complianceRepository.save(compliance);
+        Compliance saved = complianceRepository.save(compliance);
+
+        // Notify the currently authenticated user via email (if they have one)
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        userRepository.findByUsername(username)
+                .filter(u -> u.getEmail() != null && !u.getEmail().isBlank())
+                .ifPresent(u -> emailService.sendCreationNotification(u.getEmail(), saved));
+
+        return saved;
     }
 
     public Compliance update(Long id, ComplianceRequest request) {
@@ -51,8 +73,10 @@ public class ComplianceService {
         complianceRepository.deleteById(id);
     }
 
-    public List<Compliance> search(String keyword) {
-        return complianceRepository.searchByTitle(keyword);
+    public Page<Compliance> search(String keyword, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        return complianceRepository.searchByTitle(keyword, PageRequest.of(page, size, sort));
     }
 
     public Map<String, Long> getStats() {

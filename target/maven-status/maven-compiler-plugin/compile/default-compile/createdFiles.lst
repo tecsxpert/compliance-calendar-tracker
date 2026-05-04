@@ -1,6 +1,8 @@
 com\example\tool\ComplianceTrackerApplication.class
+com\example\tool\dto\ComplianceResponse.class
 com\example\tool\dto\RefreshTokenRequest.class
 com\example\tool\entity\Role.class
+com\example\tool\config\SchedulerConfig.class
 com\example\tool\security\CustomUserDetailsService.class
 com\example\tool\repository\ComplianceRepository.class
 com\example\tool\security\JwtUtil.class
@@ -9,11 +11,14 @@ com\example\tool\controller\AdminController.class
 com\example\tool\service\AuthService.class
 com\example\tool\controller\AuthController.class
 com\example\tool\entity\AuditLog.class
+com\example\tool\service\EmailService.class
 com\example\tool\service\ComplianceService.class
 com\example\tool\repository\UserRepository.class
 com\example\tool\dto\AuthResponse.class
+com\example\tool\aspect\AuditLoggingAspect.class
 com\example\tool\exception\GlobalExceptionHandler.class
 com\example\tool\config\SecurityConfig.class
+com\example\tool\scheduler\ComplianceScheduler.class
 com\example\tool\dto\RegisterRequest.class
 com\example\tool\entity\Compliance.class
 com\example\tool\security\JwtAuthenticationFilter.class

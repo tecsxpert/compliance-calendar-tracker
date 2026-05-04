@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+    .card { background: #fff; border-radius: 8px; padding: 24px; max-width: 560px; margin: auto; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    h2 { color: #c62828; }
+    .label { color: #666; font-size: 13px; }
+    .value { font-weight: bold; color: #333; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; background: #ffebee; color: #c62828; }
+    .footer { margin-top: 24px; font-size: 12px; color: #aaa; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>&#x26A0;&#xFE0F; Compliance Item Overdue</h2>
+  <p>The following compliance item has passed its due date and requires immediate attention.</p>
+  <table cellpadding="6">
+    <tr><td class="label">Title</td><td class="value" th:text="${title}"></td></tr>
+    <tr><td class="label">Status</td><td><span class="badge" th:text="${status}"></span></td></tr>
+    <tr><td class="label">Due Date</td><td class="value" th:text="${dueDate}"></td></tr>
+  </table>
+  <div class="footer">Compliance Calendar Tracker &mdash; automated notification</div>
+</div>
+</body>
+</html>
