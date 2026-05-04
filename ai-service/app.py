@@ -9,6 +9,10 @@ from groq import Groq
 # Chroma
 from services.chroma_service import ChromaService
 
+# Fake Redis (no Docker needed)
+import fakeredis
+import hashlib
+
 # -----------------------------
 # INIT
 # -----------------------------
@@ -19,16 +23,20 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 chroma = ChromaService()
 
+# Fake Redis
+redis_client = fakeredis.FakeRedis(decode_responses=True)
+
+CACHE_TTL = 900  # 15 minutes
+MODEL_NAME = "llama-3.1-8b-instant"
+
 # -----------------------------
-# METRICS (Day 7)
+# METRICS
 # -----------------------------
 response_times = deque(maxlen=10)
 start_time = time.time()
 
 cache_hits = 0
 cache_misses = 0
-
-MODEL_NAME = "llama-3.1-8b-instant"
 
 # -----------------------------
 # ROUTES
@@ -39,31 +47,7 @@ def home():
 
 
 # -----------------------------
-# CHAT (existing)
-# -----------------------------
-@app.route("/chat", methods=["POST"])
-def chat():
-    data = request.get_json()
-
-    if not data or "message" not in data:
-        return jsonify({"error": "No message provided"}), 400
-
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": data["message"]}]
-        )
-
-        return jsonify({
-            "reply": response.choices[0].message.content
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -----------------------------
-# QUERY (Day 5)
+# QUERY (Day 5 + Day 8)
 # -----------------------------
 @app.route("/query", methods=["POST"])
 def query():
@@ -73,17 +57,41 @@ def query():
 
     data = request.get_json()
     question = data.get("question")
+    use_cache = data.get("use_cache", True)
 
     if not question:
         return jsonify({"error": "Question is required"}), 400
 
-    # Retrieve docs
+    # Create cache key
+    cache_key = hashlib.sha256(question.encode()).hexdigest()
+
+    # -----------------------------
+    # CACHE CHECK
+    # -----------------------------
+    if use_cache:
+        cached = redis_client.get(cache_key)
+
+        if cached:
+            cache_hits += 1
+            result = json.loads(cached)
+
+            end = time.time()
+            response_times.append(end - start)
+
+            return jsonify({
+                "answer": result["answer"],
+                "sources": result["sources"],
+                "cache": "hit"
+            })
+
+    # -----------------------------
+    # CACHE MISS
+    # -----------------------------
+    cache_misses += 1
+
     docs = chroma.query(question, top_k=3)
 
-    if docs:
-        cache_hits += 1
-    else:
-        cache_misses += 1
+    if not docs:
         return jsonify({
             "answer": "No relevant data found",
             "sources": []
@@ -109,13 +117,22 @@ Question:
 
         answer = response.choices[0].message.content
 
-        # Track response time
+        result = {
+            "answer": answer,
+            "sources": docs
+        }
+
+        # Store in cache
+        if use_cache:
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+
         end = time.time()
         response_times.append(end - start)
 
         return jsonify({
             "answer": answer,
-            "sources": docs
+            "sources": docs,
+            "cache": "miss"
         })
 
     except Exception as e:
