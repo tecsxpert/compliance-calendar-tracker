@@ -3,10 +3,11 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const NAV = [
-  { to: '/dashboard',  label: 'Dashboard' },
-  { to: '/compliance', label: 'Records'   },
-  { to: '/tasks',      label: 'Tasks'     },
-  { to: '/analytics',  label: 'Analytics' },
+  { to: '/dashboard',  label: 'Dashboard'     },
+  { to: '/compliance', label: 'Records'        },
+  { to: '/tasks',      label: 'Tasks'          },
+  { to: '/analytics',  label: 'Analytics'      },
+  { to: '/ai',         label: 'AI Assistant'   },
 ]
 
 export default function Navbar() {
