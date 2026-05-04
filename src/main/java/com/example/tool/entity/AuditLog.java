@@ -29,6 +29,10 @@ public class AuditLog {
     @Column(nullable = false, length = 50)
     private String action;
 
+    /** Username of the authenticated user who triggered the operation. */
+    @Column(name = "performed_by", length = 100)
+    private String performedBy;
+
     @Column(name = "old_value", columnDefinition = "TEXT")
     private String oldValue;
 

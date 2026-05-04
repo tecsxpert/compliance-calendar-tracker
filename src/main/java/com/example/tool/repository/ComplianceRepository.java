@@ -27,20 +27,22 @@ public interface ComplianceRepository extends JpaRepository<Compliance, Long> {
     // Status counts — active records only
     long countByStatusAndIsDeletedFalse(String status);
 
-    long countByIsDeletedFalse();
+    @Query("SELECT c FROM Compliance c WHERE LOWER(c.title) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    Page<Compliance> searchByTitle(@Param("keyword") String keyword, Pageable pageable);
 
-    // Case-insensitive search on title OR description — active records only
-    @Query("""
-            SELECT c FROM Compliance c
-            WHERE c.isDeleted = false
-              AND (LOWER(c.title)       LIKE LOWER(CONCAT('%', :q, '%'))
-                OR LOWER(c.description) LIKE LOWER(CONCAT('%', :q, '%')))
-            """)
-    List<Compliance> search(@Param("q") String q);
+    List<Compliance> findByDueDateBetween(LocalDate start, LocalDate end);
 
-    // Scheduler: find active records with due date in range
-    List<Compliance> findByIsDeletedFalseAndDueDateBetween(LocalDate start, LocalDate end);
+    /**
+     * Returns items whose dueDate is strictly before {@code date}
+     * and whose status is NOT equal to {@code status}.
+     * Used by the daily overdue reminder to find past-due, incomplete items.
+     */
+    List<Compliance> findByDueDateBeforeAndStatusNot(LocalDate date, String status);
 
-    // Legacy — kept for backward compat
-    List<Compliance> findByStatus(String status);
+    /**
+     * Returns items whose dueDate falls within [{@code start}, {@code end}]
+     * and whose status is NOT equal to {@code status}.
+     * Used by the 7-day deadline alert to find upcoming, incomplete items.
+     */
+    List<Compliance> findByDueDateBetweenAndStatusNot(LocalDate start, LocalDate end, String status);
 }

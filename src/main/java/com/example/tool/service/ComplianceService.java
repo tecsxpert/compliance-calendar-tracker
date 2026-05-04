@@ -5,6 +5,7 @@ import com.example.tool.entity.Compliance;
 import com.example.tool.exception.InvalidDataException;
 import com.example.tool.exception.ResourceNotFoundException;
 import com.example.tool.repository.ComplianceRepository;
+import com.example.tool.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +16,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,25 +32,16 @@ public class ComplianceService {
 
     private final ComplianceRepository complianceRepository;
     private final EmailService emailService;
+    private final UserRepository userRepository;
 
-    @Value("${notification.email.recipient:admin@example.com}")
-    private String notificationRecipient;
+    public Page<Compliance> getAll(int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        return complianceRepository.findAll(PageRequest.of(page, size, sort));
+    }
 
-    @Caching(evict = {
-            @CacheEvict(value = "complianceRecords", allEntries = true),
-            @CacheEvict(value = "complianceById",    allEntries = true)
-    })
-    public Compliance createRecord(ComplianceRequest request) {
-        validate(request);
-        log.info("Cache evicted on createRecord - cache: complianceRecords, complianceById");
-        Compliance c = new Compliance();
-        c.setTitle(request.getTitle());
-        c.setDescription(request.getDescription());
-        c.setStatus(request.getStatus());
-        c.setDueDate(request.getDueDate());
-        Compliance saved = complianceRepository.save(c);
-        emailService.sendComplianceCreatedEmail(notificationRecipient, saved);
-        return saved;
+    public List<Compliance> exportAll() {
+        return complianceRepository.findAll();
     }
 
     @Cacheable(value = "complianceRecords", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort", unless = "#result == null")
@@ -53,11 +50,21 @@ public class ComplianceService {
         return complianceRepository.findByIsDeletedFalse(pageable);
     }
 
-    @Cacheable(value = "complianceById", key = "#id", unless = "#result == null")
-    public Compliance getRecordById(Long id) {
-        log.info("Cache MISS - fetching complianceById from DB for id: {}", id);
-        return complianceRepository.findByIdAndIsDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Compliance record not found with id: " + id));
+    public Compliance create(ComplianceRequest request) {
+        Compliance compliance = new Compliance();
+        compliance.setTitle(request.getTitle());
+        compliance.setDescription(request.getDescription());
+        compliance.setStatus(request.getStatus());
+        compliance.setDueDate(request.getDueDate());
+        Compliance saved = complianceRepository.save(compliance);
+
+        // Notify the currently authenticated user via email (if they have one)
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        userRepository.findByUsername(username)
+                .filter(u -> u.getEmail() != null && !u.getEmail().isBlank())
+                .ifPresent(u -> emailService.sendCreationNotification(u.getEmail(), saved));
+
+        return saved;
     }
 
     @Caching(evict = {
@@ -88,8 +95,10 @@ public class ComplianceService {
         complianceRepository.save(c);
     }
 
-    public List<Compliance> search(String keyword) {
-        return complianceRepository.search(keyword);
+    public Page<Compliance> search(String keyword, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        return complianceRepository.searchByTitle(keyword, PageRequest.of(page, size, sort));
     }
 
     public Map<String, Long> getStats() {

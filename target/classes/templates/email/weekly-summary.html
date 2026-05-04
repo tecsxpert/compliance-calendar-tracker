@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+    .card { background: #fff; border-radius: 8px; padding: 24px; max-width: 620px; margin: auto; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    h2 { color: #1565c0; }
+    .stats { display: flex; gap: 16px; margin: 16px 0; }
+    .stat-box { flex: 1; border-radius: 8px; padding: 12px; text-align: center; }
+    .stat-box .num { font-size: 28px; font-weight: bold; }
+    .stat-box .lbl { font-size: 12px; color: #555; }
+    .total   { background: #e3f2fd; color: #1565c0; }
+    .pending { background: #fff8e1; color: #f57f17; }
+    .done    { background: #e8f5e9; color: #2e7d32; }
+    .overdue { background: #ffebee; color: #c62828; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+    th { background: #1565c0; color: #fff; padding: 8px; text-align: left; }
+    td { padding: 7px 8px; border-bottom: 1px solid #eee; }
+    tr:nth-child(even) td { background: #f9f9f9; }
+    .footer { margin-top: 24px; font-size: 12px; color: #aaa; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>&#x1F4CA; Weekly Compliance Summary</h2>
+  <div class="stats">
+    <div class="stat-box total">
+      <div class="num" th:text="${total}">0</div>
+      <div class="lbl">Total</div>
+    </div>
+    <div class="stat-box pending">
+      <div class="num" th:text="${pending}">0</div>
+      <div class="lbl">Pending</div>
+    </div>
+    <div class="stat-box done">
+      <div class="num" th:text="${completed}">0</div>
+      <div class="lbl">Completed</div>
+    </div>
+    <div class="stat-box overdue">
+      <div class="num" th:text="${overdue}">0</div>
+      <div class="lbl">Overdue</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Title</th><th>Status</th><th>Due Date</th></tr>
+    </thead>
+    <tbody>
+      <tr th:each="item : ${items}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.title}"></td>
+        <td th:text="${item.status}"></td>
+        <td th:text="${item.dueDate}"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="footer">Compliance Calendar Tracker &mdash; weekly automated report</div>
+</div>
+</body>
+</html>

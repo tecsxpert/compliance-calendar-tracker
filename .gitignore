@@ -1,10 +1,22 @@
-venv/
-__pycache__/
-*.pyc
-.env
-.DS_Store
-chroma_db/
-uploads/
+# Build
 target/
 *.class
 *.jar
+*.war
+
+# JDK / JRE folders
+**/oracleJdk-*/
+**/jdk-*/
+**/jre-*/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db

@@ -5,6 +5,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -12,55 +13,97 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Sends HTML emails using JavaMailSender + Thymeleaf templates.
+ * All send methods are @Async so they never block the calling thread.
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
+    @Value("${app.mail.from}")
+    private String fromAddress;
+
+    @Value("${app.mail.admin-email}")
+    private String adminEmail;
+
+    // ── Public API ────────────────────────────────────────────────
+
+  
     @Async
-    public void sendEmail(String to, String subject, String content) {
+    public void sendCreationNotification(String to, Compliance compliance) {
+        Context ctx = new Context();
+        ctx.setVariables(Map.of(
+                "title",       compliance.getTitle(),
+                "status",      compliance.getStatus(),
+                "dueDate",     compliance.getDueDate(),
+                "description", compliance.getDescription() != null ? compliance.getDescription() : ""
+        ));
+        sendHtml(to, "New Compliance Record: " + compliance.getTitle(),
+                "email/compliance-created", ctx);
+    }
+
+    /**
+     * Notify a recipient that a compliance record is overdue.
+     *
+     * @param to         recipient email address
+     * @param compliance the overdue record
+     */
+    @Async
+    public void sendOverdueNotification(String to, Compliance compliance) {
+        Context ctx = new Context();
+        ctx.setVariables(Map.of(
+                "title",   compliance.getTitle(),
+                "dueDate", compliance.getDueDate(),
+                "status",  compliance.getStatus()
+        ));
+        sendHtml(to, "OVERDUE: " + compliance.getTitle(), "email/compliance-overdue", ctx);
+    }
+
+    /**
+     * Send the weekly summary report to the admin email.
+     *
+     * @param items all compliance items for the summary
+     */
+    @Async
+    public void sendWeeklySummary(List<Compliance> items) {
+        long pending   = items.stream().filter(c -> "PENDING".equals(c.getStatus())).count();
+        long completed = items.stream().filter(c -> "COMPLETED".equals(c.getStatus())).count();
+        long overdue   = items.stream().filter(c -> "OVERDUE".equals(c.getStatus())).count();
+
+        Context ctx = new Context();
+        ctx.setVariables(Map.of(
+                "total",     items.size(),
+                "pending",   pending,
+                "completed", completed,
+                "overdue",   overdue,
+                "items",     items
+        ));
+        sendHtml(adminEmail, "Weekly Compliance Summary", "email/weekly-summary", ctx);
+    }
+
+    // ── Internal helper ───────────────────────────────────────────
+
+    private void sendHtml(String to, String subject, String template, Context ctx) {
         try {
+            String html = templateEngine.process(template, ctx);
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromAddress);
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setText(content, true);
+            helper.setText(html, true);
             mailSender.send(message);
-            log.info("Email sent to: {} | subject: {}", to, subject);
+            log.info("Email sent to {} | subject: {}", to, subject);
         } catch (MessagingException e) {
-            log.error("Failed to send email to: {} | reason: {}", to, e.getMessage());
-        }
-    }
-
-    @Async
-    public void sendComplianceCreatedEmail(String to, Compliance compliance) {
-        try {
-            Context ctx = new Context();
-            ctx.setVariable("title",       compliance.getTitle());
-            ctx.setVariable("description", compliance.getDescription());
-            ctx.setVariable("status",      compliance.getStatus());
-            ctx.setVariable("dueDate",     compliance.getDueDate());
-            String content = templateEngine.process("emails/compliance-created", ctx);
-            sendEmail(to, "New Compliance Record Created: " + compliance.getTitle(), content);
-        } catch (Exception e) {
-            log.error("Failed to send compliance-created email for id: {} | reason: {}", compliance.getId(), e.getMessage());
-        }
-    }
-
-    @Async
-    public void sendOverdueEmail(String to, Compliance compliance) {
-        try {
-            Context ctx = new Context();
-            ctx.setVariable("title",   compliance.getTitle());
-            ctx.setVariable("dueDate", compliance.getDueDate());
-            ctx.setVariable("status",  compliance.getStatus());
-            String content = templateEngine.process("emails/compliance-overdue", ctx);
-            sendEmail(to, "Overdue Compliance Alert: " + compliance.getTitle(), content);
-        } catch (Exception e) {
-            log.error("Failed to send overdue email for id: {} | reason: {}", compliance.getId(), e.getMessage());
+            log.error("Failed to send email to {} | subject: {} | error: {}", to, subject, e.getMessage());
         }
     }
 }
