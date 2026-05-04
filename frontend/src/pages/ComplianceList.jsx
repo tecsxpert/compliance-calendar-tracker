@@ -1,54 +1,14 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import * as complianceService from '../services/complianceService'
 import { StatusBadge, PriorityBadge } from '../components/StatusBadge'
 import { formatDate, isOverdue, STATUS_OPTIONS, PRIORITY_OPTIONS } from '../utils/helpers'
 import { useDebounce } from '../hooks/useDebounce'
+import LoadingSkeleton from '../components/LoadingSkeleton'
+import EmptyState from '../components/EmptyState'
 
 const PAGE_SIZE = 10
-
-// ── Skeleton Row ──────────────────────────────────────────────────────────────
-function SkeletonRow({ delay = 0 }) {
-  return (
-    <tr className="border-b border-slate-100 animate-pulse" style={{ animationDelay: `${delay}ms` }}>
-      {[60, 200, 100, 90, 80, 80].map((w, i) => (
-        <td key={i} className="px-4 py-4">
-          <div className="h-3 bg-slate-200 rounded-full" style={{ width: w, maxWidth: '100%' }} />
-          {i === 1 && <div className="h-2 bg-slate-100 rounded-full mt-2 w-28" />}
-        </td>
-      ))}
-    </tr>
-  )
-}
-
-// ── Empty Row ─────────────────────────────────────────────────────────────────
-function EmptyRow({ hasFilters, onClear, onAdd }) {
-  return (
-    <tr><td colSpan={6}>
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center mb-4">
-          <svg className="w-7 h-7 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        </div>
-        {hasFilters ? (
-          <>
-            <h3 className="text-sm font-semibold text-slate-800 mb-1">No records match your filters</h3>
-            <p className="text-xs text-slate-400 mb-5">Try adjusting your search or filter criteria.</p>
-            <button onClick={onClear} className="btn-secondary text-sm px-5 py-2">Clear Filters</button>
-          </>
-        ) : (
-          <>
-            <h3 className="text-sm font-semibold text-slate-800 mb-1">No compliance records yet</h3>
-            <p className="text-xs text-slate-400 mb-5">Start by adding your first compliance record.</p>
-            <button onClick={onAdd} className="btn-primary text-sm px-5 py-2">+ Add First Record</button>
-          </>
-        )}
-      </div>
-    </td></tr>
-  )
-}
 
 // ── Error Row ─────────────────────────────────────────────────────────────────
 function ErrorRow({ message, onRetry }) {
@@ -158,19 +118,36 @@ export default function ComplianceList() {
   const handleDelete = async (e, id, title) => {
     e.stopPropagation()
     if (!window.confirm(`Delete "${title}"?\nThis cannot be undone.`)) return
+    
+    const deletePromise = complianceService.remove(id)
+    
+    toast.promise(deletePromise, {
+      loading: 'Deleting record...',
+      success: 'Record deleted successfully',
+      error: (err) => err.response?.data?.message || 'Delete failed',
+    })
+
     try {
-      await complianceService.remove(id)
+      await deletePromise
       fetchRecords()
     } catch (err) {
-      alert(err.response?.data?.message || 'Delete failed.')
+      console.error('Delete failed:', err)
     }
   }
 
   // ── CSV Export ────────────────────────────────────────────────────────────
   const handleExport = async () => {
     setExporting(true)
+    const exportPromise = complianceService.exportCsv()
+    
+    toast.promise(exportPromise, {
+      loading: 'Preparing export...',
+      success: 'Export downloaded',
+      error: 'Export failed',
+    })
+
     try {
-      const res = await complianceService.exportCsv()
+      const res = await exportPromise
       const url  = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }))
       const link = document.createElement('a')
       link.href  = url
@@ -179,8 +156,8 @@ export default function ComplianceList() {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
-    } catch {
-      alert('Export failed. Please try again.')
+    } catch (err) {
+      console.error('Export failed:', err)
     } finally {
       setExporting(false)
     }
@@ -219,6 +196,18 @@ export default function ComplianceList() {
       acc.push(i)
       return acc
     }, [])
+
+  if (loading && records.length === 0) {
+    return (
+      <div className="page-shell">
+        <div className="page-header mb-8">
+          <div className="h-10 bg-slate-200 rounded-xl w-64 animate-pulse"></div>
+          <div className="h-10 bg-slate-200 rounded-xl w-32 animate-pulse"></div>
+        </div>
+        <LoadingSkeleton type="list" />
+      </div>
+    )
+  }
 
   return (
     <div className="page-shell space-y-4">
@@ -346,104 +335,116 @@ export default function ComplianceList() {
       {/* ── Table ── */}
       <div className="table-card">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px]">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <ColHeader col="id"       label="ID"       />
-                <ColHeader col="title"    label="Title"    />
-                <ColHeader col="status"   label="Status"   />
-                <ColHeader col="dueDate"  label="Due Date" />
-                <ColHeader col="priority" label="Priority" />
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} delay={i * 60} />)}
-              {!loading && error && <ErrorRow message={error} onRetry={fetchRecords} />}
-              {!loading && !error && records.length === 0 && (
-                <EmptyRow
-                  hasFilters={hasFilters}
-                  onClear={clearFilters}
-                  onAdd={() => navigate('/compliance/new')}
-                />
-              )}
-              {!loading && !error && records.map(rec => {
-                const overdue = isOverdue(rec.dueDate) && rec.status !== 'COMPLIANT'
-                return (
-                  <tr key={rec.id} onClick={() => navigate(`/compliance/${rec.id}`)}
-                    className="hover:bg-slate-50 transition-colors cursor-pointer">
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span className="text-xs font-mono text-slate-400">#{rec.id}</span>
-                    </td>
-                    <td className="px-4 py-3.5 max-w-[220px]">
-                      <p className="text-sm font-medium text-slate-800 truncate">{rec.title}</p>
-                      {rec.description && (
-                        <p className="text-xs text-slate-400 truncate mt-0.5">{rec.description}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <StatusBadge status={rec.status} />
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span className={`text-sm ${overdue ? 'text-red-500 font-semibold' : 'text-slate-600'}`}>
-                        {formatDate(rec.dueDate)}
-                      </span>
-                      {overdue && <p className="text-[10px] text-red-400 font-semibold uppercase tracking-wide mt-0.5">Overdue</p>}
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <PriorityBadge priority={rec.priority} />
-                    </td>
-                    <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => navigate(`/compliance/${rec.id}/edit`)}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-all min-h-[30px]">
-                          Edit
-                        </button>
-                        <button
-                          onClick={e => handleDelete(e, rec.id, rec.title)}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all min-h-[30px]">
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {error ? (
+            <div className="p-8">
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-8 text-center">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-red-900 mb-2">Fetch Error</h3>
+                <p className="text-red-700 mb-6">{error}</p>
+                <button onClick={fetchRecords} className="btn-secondary border-red-200 text-red-700 hover:bg-red-100">↻ Try Again</button>
+              </div>
+            </div>
+          ) : records.length === 0 && !loading ? (
+            <EmptyState 
+              title={hasFilters ? "No matching records" : "No compliance records"}
+              message={hasFilters ? "Try adjusting your filters or search terms." : "Start by creating your first compliance record to track items."}
+              action={hasFilters ? { label: "Clear Filters", onClick: clearFilters } : { label: "Create Record", onClick: () => navigate('/compliance/new') }}
+            />
+          ) : (
+            <table className="w-full min-w-[700px]">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <ColHeader col="id"       label="ID"       />
+                  <ColHeader col="title"    label="Title"    />
+                  <ColHeader col="status"   label="Status"   />
+                  <ColHeader col="dueDate"  label="Due Date" />
+                  <ColHeader col="priority" label="Priority" />
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {records.map(rec => {
+                  const overdue = isOverdue(rec.dueDate) && rec.status !== 'COMPLIANT'
+                  return (
+                    <tr key={rec.id} onClick={() => navigate(`/compliance/${rec.id}`)}
+                      className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="text-xs font-mono text-slate-400 group-hover:text-slate-600 transition-colors">#{rec.id}</span>
+                      </td>
+                      <td className="px-4 py-3.5 max-w-[220px]">
+                        <p className="text-sm font-bold text-slate-800 truncate">{rec.title}</p>
+                        {rec.description && (
+                          <p className="text-xs text-slate-400 truncate mt-0.5">{rec.description}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <StatusBadge status={rec.status} />
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className={`text-sm ${overdue ? 'text-red-500 font-bold' : 'text-slate-600'}`}>
+                          {formatDate(rec.dueDate)}
+                        </span>
+                        {overdue && <p className="text-[10px] text-red-400 font-black uppercase tracking-widest mt-0.5 animate-pulse">Overdue</p>}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <PriorityBadge priority={rec.priority} />
+                      </td>
+                      <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => navigate(`/compliance/${rec.id}/edit`)}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-primary-600 transition-all">
+                            Edit
+                          </button>
+                          <button
+                            onClick={e => handleDelete(e, rec.id, rec.title)}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all">
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* ── Pagination ── */}
         {!loading && !error && totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 bg-slate-50">
-            <p className="text-xs text-slate-400">
-              Page {page + 1} of {totalPages} · {totalElements} records
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 bg-white">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+              Page {page + 1} of {totalPages} <span className="mx-2">/</span> {totalElements} elements
             </p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                ← Prev
+                className="p-2 text-xs rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
               </button>
               {pageNumbers.map(item =>
                 String(item).startsWith('e') ? (
-                  <span key={item} className="px-1.5 text-slate-300 text-xs">…</span>
+                  <span key={item} className="px-2 text-slate-300">···</span>
                 ) : (
                   <button key={item} onClick={() => setPage(item)}
-                    className={`w-8 h-8 text-xs rounded-lg border transition-all ${
+                    className={`w-9 h-9 text-xs font-bold rounded-xl border transition-all ${
                       page === item
-                        ? 'bg-primary-600 border-primary-600 text-white font-semibold'
-                        : 'border-slate-200 text-slate-600 hover:bg-white'
+                        ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-100'
+                        : 'border-slate-100 text-slate-500 hover:bg-slate-50'
                     }`}>
                     {item + 1}
                   </button>
                 )
               )}
               <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-                className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                Next →
+                className="p-2 text-xs rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
               </button>
             </div>
           </div>
