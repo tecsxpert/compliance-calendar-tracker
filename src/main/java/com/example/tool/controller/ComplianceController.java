@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -89,75 +90,21 @@ public class ComplianceController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        complianceService.delete(id);
+        complianceService.deleteRecord(id);
         return ResponseEntity.noContent().build();
     }
 
-    // ── GET search ────────────────────────────────────────────────
-
-    /**
-     * GET /api/compliance/search?q=gdpr&page=0&size=10
-     */
+    // GET /api/compliance/search?q=keyword  → 200 OK
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('VIEWER','MANAGER','ADMIN')")
-    public Page<ComplianceResponse> search(
-            @RequestParam String q,
-            @RequestParam(defaultValue = "0")   int page,
-            @RequestParam(defaultValue = "10")  int size,
-            @RequestParam(defaultValue = "id")  String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
-        return complianceService.search(q, page, size, sortBy, sortDir)
-                .map(ComplianceResponse::new);
+    public ResponseEntity<List<ComplianceResponse>> search(@RequestParam String q) {
+        List<ComplianceResponse> results = complianceService.search(q)
+                .stream().map(ComplianceResponse::new).toList();
+        return ResponseEntity.ok(results);
     }
 
-    // ── GET stats ─────────────────────────────────────────────────
-
-    /**
-     * GET /api/compliance/stats
-     * Response: { "total":10, "pending":4, "completed":5, "overdue":1 }
-     */
+    // GET /api/compliance/stats  → 200 OK
     @GetMapping("/stats")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
-    public Map<String, Long> stats() {
-        return complianceService.getStats();
-    }
-
-    // ── GET export CSV ────────────────────────────────────────────
-
-    /**
-     * GET /api/compliance/export
-     * Returns a downloadable CSV file with all compliance records.
-     */
-    @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('VIEWER','MANAGER','ADMIN')")
-    public ResponseEntity<byte[]> exportToCsv() {
-        List<Compliance> items = complianceService.exportAll();
-
-        StringBuilder csv = new StringBuilder("ID,Title,Description,Status,DueDate,CreatedAt\n");
-        for (Compliance c : items) {
-            csv.append(c.getId()).append(',')
-               .append(escape(c.getTitle())).append(',')
-               .append(escape(c.getDescription())).append(',')
-               .append(c.getStatus()).append(',')
-               .append(c.getDueDate() != null ? c.getDueDate() : "").append(',')
-               .append(c.getCreatedAt() != null ? c.getCreatedAt() : "").append('\n');
-        }
-
-        byte[] bytes = csv.toString().getBytes(StandardCharsets.UTF_8);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentDispositionFormData("attachment", "compliances.csv");
-        headers.setContentType(MediaType.parseMediaType("text/csv"));
-        return new ResponseEntity<>(bytes, headers, HttpStatus.OK);
-    }
-
-    // ── Helper ────────────────────────────────────────────────────
-
-    private String escape(String value) {
-        if (value == null) return "";
-        String cleaned = value.replaceAll("\\R", " ");
-        if (cleaned.contains(",") || cleaned.contains("\"")) {
-            cleaned = "\"" + cleaned.replace("\"", "\"\"") + "\"";
-        }
-        return cleaned;
+    public ResponseEntity<Map<String, Long>> stats() {
+        return ResponseEntity.ok(complianceService.getStats());
     }
 }

@@ -36,12 +36,7 @@ public class EmailService {
 
     // ── Public API ────────────────────────────────────────────────
 
-    /**
-     * Notify a recipient that a new compliance record was created.
-     *
-     * @param to         recipient email address
-     * @param compliance the newly created record
-     */
+  
     @Async
     public void sendCreationNotification(String to, Compliance compliance) {
         Context ctx = new Context();

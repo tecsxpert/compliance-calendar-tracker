@@ -29,6 +29,7 @@ public class AuthController {
 
     // ── Register ─────────────────────────────────────────────────
 
+    // POST /auth/register  → 200 OK | 400 BAD REQUEST
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
